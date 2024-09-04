@@ -524,8 +524,8 @@ class MelBandRoformer(nn.Module):
 
         scatter_indices = repeat(freq_indices, 'f -> b n f t', b=batch, n=self.num_stems, t=stft_repr.shape[-1])
         stft_repr_expanded_stems = repeat(stft_repr, 'b 1 ... -> b n ...', n=self.num_stems,)
-        scatter_indices = scatter_indices[:,:,:stft_repr_expanded_stems.shape[2],:]
-        masks = masks[:,:,:stft_repr_expanded_stems.shape[2],:]
+        #scatter_indices = scatter_indices[:,:,:stft_repr_expanded_stems.shape[2],:]
+        #masks = masks[:,:,:stft_repr_expanded_stems.shape[2],:]
         masks_summed = scatter(input=jnp.zeros_like(stft_repr_expanded_stems),dim=2,index=scatter_indices,src=masks,reduce="add")
 
         denom = repeat(num_bands_per_freq, 'f -> (f r) 1', r=channels)

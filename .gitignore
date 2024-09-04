@@ -169,3 +169,5 @@ input/
 output/
 jax_cache/
 util.py
+MelBandRoformer.ckpt
+test3.wav
