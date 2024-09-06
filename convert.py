@@ -1,8 +1,8 @@
 import flax
 import jax
 import torch
-def load_params():
-    state_dict = torch.load("MelBandRoformer.ckpt",map_location="cpu")
+def load_params(path):
+    state_dict = torch.load(path,map_location="cpu")
     params = {
 
     }
