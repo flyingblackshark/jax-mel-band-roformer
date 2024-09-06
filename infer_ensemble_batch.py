@@ -21,7 +21,9 @@ cc.set_cache_dir("./jax_cache")
 def run_folder(args,verbose=False):
     start_time = time.time()
     model = MelBandRoformer(precision=jax.lax.Precision.DEFAULT)
-    params = load_params(args.start_check_point)
+    params_a = load_params(args.start_check_point_a)
+    params_b = load_params(args.start_check_point_b)
+    params = (params_a,params_b)
     model = (model,params)
     
     all_mixtures_path = glob.glob(args.input_folder + '/*.*')
@@ -99,12 +101,14 @@ def demix_track(model, mix,mesh, pbar=False):
     step = int(C // N)
     border = C - step
     batch_size = 32 #config.inference.batch_size
-
+    
     x_sharding = NamedSharding(mesh,PartitionSpec('data'))
     @partial(jax.jit, in_shardings=(None,x_sharding),
                     out_shardings=x_sharding)
-    def model_apply(params, x):
-        return model.apply({'params': params}, x , deterministic=True)
+    def model_apply(ensebmle_params, x):
+        for params in ensebmle_params:
+            x = model.apply({'params': params}, x , deterministic=True)
+        return x
     length_init = mix.shape[-1]
 
     # Do pad from the beginning and end to account floating window results better
@@ -194,7 +198,8 @@ def demix_track(model, mix,mesh, pbar=False):
 
 def proc_folder(args):
     parser = argparse.ArgumentParser()
-    parser.add_argument("--start_check_point", type=str, default='MelBandRoformer_vocal.ckpt', help="Initial checkpoint to valid weights")
+    parser.add_argument("--start_check_point_a", type=str, default='MelBandRoformer_vocal.ckpt', help="Initial checkpoint to valid weights")
+    parser.add_argument("--start_check_point_b", type=str, default='dereverb_mel_band_roformer_anvuew_sdr_19.1729.ckpt', help="Initial checkpoint to valid weights")
     parser.add_argument("--input_folder",default="./input", type=str, help="folder with mixtures to process")
     parser.add_argument("--store_dir", default="./output", type=str, help="path to store results as wav file")
     parser.add_argument("--disable_detailed_pbar", action='store_true', help="disable detailed progress bar")
