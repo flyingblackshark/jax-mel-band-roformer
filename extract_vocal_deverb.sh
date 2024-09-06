@@ -1,0 +1,2 @@
+python infer_batch.py --start_check_point MelBandRoformer.ckpt --input_folder ./input --store_dir ./output/vocal
+python infer_batch.py --start_check_point dereverb_mel_band_roformer_anvuew_sdr_19.1729.ckpt --input_folder ./output/vocal --store_dir ./output/deverb
