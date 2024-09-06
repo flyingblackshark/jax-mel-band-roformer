@@ -108,6 +108,7 @@ def demix_track(model, mix,mesh, pbar=False):
     def model_apply(ensebmle_params, x):
         for params in ensebmle_params:
             x = model.apply({'params': params}, x , deterministic=True)
+            x = jnp.nan_to_num(x,nan=0)
         return x
     length_init = mix.shape[-1]
 
