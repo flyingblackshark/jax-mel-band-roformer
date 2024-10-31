@@ -26,14 +26,18 @@ def run_folder(args,verbose=False):
     
     all_mixtures_path = glob.glob(args.input_folder + '/*.*')
     all_mixtures_path.sort()
+    if args.nodes_num is not 1:
+        total_num_audios = len(all_mixtures_path)
+        split_length = total_num_audios / args.nodes_num + 1
+        all_mixtures_path = all_mixtures_path[split_length*args.curNodeId,split_length*(args.curNodeId+1)]
     num_audios = len(all_mixtures_path)
     print('Total files found: {}'.format(num_audios))
 
     if not os.path.isdir(args.store_dir):
         os.mkdir(args.store_dir)
 
-    if not verbose:
-        all_mixtures_path = tqdm(all_mixtures_path, desc="Total progress")
+    # if not verbose:
+    #     all_mixtures_path = tqdm(all_mixtures_path, desc="Total progress")
 
     # if args.disable_detailed_pbar:
     #     detailed_pbar = False
@@ -198,6 +202,8 @@ def proc_folder(args):
     parser.add_argument("--input_folder",default="./input", type=str, help="folder with mixtures to process")
     parser.add_argument("--store_dir", default="./output", type=str, help="path to store results as wav file")
     parser.add_argument("--disable_detailed_pbar", action='store_true', help="disable detailed progress bar")
+    parser.add_argument("--nodes_num", default=1, type=int, help="total nodes count")
+    parser.add_argument("--cur_node_id", default=0, type=int, help="current node id")
     args = parser.parse_args()
     run_folder(args,verbose=True)
 
