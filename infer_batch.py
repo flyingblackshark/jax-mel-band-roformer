@@ -54,7 +54,7 @@ def run_folder(args,verbose=False):
             path = next(mixtures)
             mix, sr = librosa.load(path, sr=44100, mono=False)
             if len(mix.shape) == 1:
-                mix = jnp.stack([mix, mix], axis=0)
+                mix = np.stack([mix, mix], axis=0)
             length_arr.append(mix.shape[1])
             file_name, _ = os.path.splitext(os.path.basename(path))
             file_name_arr.append(file_name)
@@ -62,14 +62,15 @@ def run_folder(args,verbose=False):
             if bigmix is None:
                 bigmix = mix
             else:
-                bigmix = jnp.concatenate([bigmix,mix],axis=1)
-            print(f"bigmix length now: {bigmix.shape[1]}")
+                bigmix = np.concatenate([bigmix,mix],axis=1)
+            #print(f"bigmix length now: {bigmix.shape[1]}")
             i+=1
 
             if bigmix.shape[1] >= 352768 * 64:
                 break
 
         res = demix_track(model,bigmix,mesh, pbar=False)
+        res = np.asarray(res)
         estimates = res.squeeze(0)
         length_arr = np.asarray(length_arr)
         length_arr = np.cumsum(length_arr)
@@ -185,7 +186,7 @@ def demix_track(model, mix,mesh, pbar=False):
     #     progress_bar.close()
 
     estimated_sources = result / counter
-    estimated_sources = jnp.nan_to_num(estimated_sources,copy=False,nan=0)
+    estimated_sources = jnp.where(jnp.isnan(estimated_sources), 0, estimated_sources)
 
     if length_init > 2 * border and (border > 0):
         # Remove pad
