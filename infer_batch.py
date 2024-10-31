@@ -29,7 +29,7 @@ def run_folder(args,verbose=False):
     if int(args.nodes_num) != 1:
         total_num_audios = len(all_mixtures_path)
         split_length = total_num_audios / int(args.nodes_num) + 1
-        all_mixtures_path = all_mixtures_path[split_length*int(args.cur_node_id),split_length*int(args.cur_node_id+1)]
+        all_mixtures_path = all_mixtures_path[split_length*int(args.cur_node_id):split_length*int(args.cur_node_id+1)]
     num_audios = len(all_mixtures_path)
     print('Total files found: {}'.format(num_audios))
 
