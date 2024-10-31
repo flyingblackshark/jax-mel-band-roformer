@@ -129,7 +129,7 @@ def demix_track(model, mix,mesh, pbar=False):
     i = 0
     batch_data = []
     batch_locations = []
-    progress_bar = tqdm(total=mix.shape[1], desc="Processing audio chunks", leave=False) if pbar else None
+    #progress_bar = tqdm(total=mix.shape[1], desc="Processing audio chunks", leave=False) if pbar else None
     # meter = jln.Meter(44100) # create BS.1770 meter
     # measure_loudness_jit = jax.jit(jax.vmap(meter.integrated_loudness)
     #                                 ,in_shardings=(x_sharding)
@@ -182,11 +182,11 @@ def demix_track(model, mix,mesh, pbar=False):
             batch_data = []
             batch_locations = []
 
-        if progress_bar:
-            progress_bar.update(step)
+    #     if progress_bar:
+    #         progress_bar.update(step)
 
-    if progress_bar:
-        progress_bar.close()
+    # if progress_bar:
+    #     progress_bar.close()
 
     estimated_sources = result / counter
     estimated_sources = jnp.nan_to_num(estimated_sources,copy=False,nan=0)
