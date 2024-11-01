@@ -15,6 +15,8 @@ import time
 from librosa import filters
 import numpy as np
 from einops import einsum, rearrange, pack, unpack,repeat,reduce
+from jax.experimental.compilation_cache import compilation_cache as cc
+cc.set_cache_dir("./jax_cache")
 def pre_compute():
     mel_filter_bank_numpy = filters.mel(sr=44100, n_fft=2048, n_mels=60)
     mel_filter_bank_numpy[0][0] = 1.
