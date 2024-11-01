@@ -150,6 +150,7 @@ def demix_track(model, params,mix,mesh):
             x = multihost_utils.process_allgather(x,tiled=False)
             #x = multihost_utils.global_array_to_host_local_array(x, mesh, PartitionSpec('data'))
             x = np.asarray(x)
+            print(x.shape)
             x = x[:batch_size-B_padding]
             window = windowingArray
             if i - step == 0:  # First audio chunk, no fadein
