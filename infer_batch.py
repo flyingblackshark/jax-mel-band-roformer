@@ -136,7 +136,7 @@ def demix_track(model, params,mix,mesh):
             devices: np.ndarray = np.array(
                 jax.devices()).reshape(jax.process_count() * jax.local_device_count())
             global_mesh = jax.sharding.Mesh(devices, ('data'))
-            pspec = PartitionSpec('processes')
+            pspec = PartitionSpec('data')
             arr = multihost_utils.host_local_array_to_global_array(
                 arr, global_mesh, pspec
             )
