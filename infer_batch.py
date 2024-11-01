@@ -8,14 +8,13 @@ import soundfile as sf
 import glob
 import os
 from jax.sharding import Mesh, PartitionSpec, NamedSharding
-from jax.experimental import mesh_utils
+from jax.experimental import mesh_utils,multihost_utils
 from functools import partial
 import jax
 import time
 from librosa import filters
 import numpy as np
 from einops import einsum, rearrange, pack, unpack,repeat,reduce
-
 def pre_compute():
     mel_filter_bank_numpy = filters.mel(sr=44100, n_fft=2048, n_mels=60)
     mel_filter_bank_numpy[0][0] = 1.
@@ -134,6 +133,10 @@ def demix_track(model, params,mix,mesh):
             arr = np.stack(batch_data, axis=0)
             B_padding = max((batch_size-len(batch_data)),0)
             arr = np.pad(arr,((0,B_padding),(0,0),(0,0)))
+            arr = multihost_utils.host_local_array_to_global_array(
+                arr, mesh, x_sharding
+            )
+
             # infer
             with mesh:
                 x = model_apply(params,arr)
