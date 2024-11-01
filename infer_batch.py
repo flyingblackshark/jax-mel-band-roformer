@@ -147,6 +147,7 @@ def demix_track(model, params,mix,mesh):
                 x = model_apply(params,arr)
             #x = multihost_utils.process_allgather(x)
             x = multihost_utils.global_array_to_host_local_array(x, mesh, PartitionSpec('data'))
+            x = np.asarray(x)
             x = x[:batch_size-B_padding]
             window = windowingArray
             if i - step == 0:  # First audio chunk, no fadein
@@ -161,7 +162,6 @@ def demix_track(model, params,mix,mesh):
 
             batch_data = []
             batch_locations = []
-    np.nan_to_num(result, copy=False, nan=0.0)
     estimated_sources = result / counter
     np.nan_to_num(estimated_sources, copy=False, nan=0.0)
     #estimated_sources = jnp.where(jnp.isnan(estimated_sources), 0, estimated_sources)
