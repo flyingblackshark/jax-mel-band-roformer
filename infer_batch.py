@@ -133,8 +133,11 @@ def demix_track(model, params,mix,mesh):
             arr = np.stack(batch_data, axis=0)
             B_padding = max((batch_size-len(batch_data)),0)
             arr = np.pad(arr,((0,B_padding),(0,0),(0,0)))
+            devices: np.ndarray = np.array(
+                jax.devices()).reshape(jax.process_count() * jax.local_device_count())
+            global_mesh = jax.sharding.Mesh(devices, ('data'))
             arr = multihost_utils.host_local_array_to_global_array(
-                arr, mesh, x_sharding
+                arr, global_mesh, x_sharding
             )
 
             # infer
