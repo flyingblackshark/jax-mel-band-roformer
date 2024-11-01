@@ -70,9 +70,10 @@ def run_folder(args):
         i+=1
         estimates_now = estimates.transpose(1,0)
         estimates_now = estimates_now / np.max(estimates_now)
-        output_file = os.path.join(args.store_dir, f"{file_name}_vocal.wav")
-        sf.write(output_file, estimates_now, sr, subtype = 'FLOAT')
-        print(f"{i} write {output_file}")
+        if jax.process_index() == 0:
+            output_file = os.path.join(args.store_dir, f"{file_name}_vocal.wav")
+            sf.write(output_file, estimates_now, sr, subtype = 'FLOAT')
+            print(f"{i} write {output_file}")
 
     print("Elapsed time: {:.2f} sec".format(time.time() - start_time))
 
@@ -87,7 +88,7 @@ def demix_track(model, params,mix,mesh):
     border = C - step
     batch_size_per_device = 8 #config.inference.batch_size
     device_count = jax.device_count()
-    batch_size = batch_size_per_device * device_count()
+    batch_size = batch_size_per_device * device_count
 
     x_sharding = NamedSharding(mesh,PartitionSpec('data'))
     @partial(jax.jit, in_shardings=(None,x_sharding),
