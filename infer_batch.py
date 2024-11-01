@@ -145,7 +145,7 @@ def demix_track(model, params,mix,mesh):
             # infer
             with mesh:
                 x = model_apply(params,arr)
-            #x = multihost_utils.process_allgather(x)
+            x = multihost_utils.process_allgather(x)
             x = multihost_utils.global_array_to_host_local_array(x, mesh, PartitionSpec('data'))
             x = np.asarray(x)
             x = x[:batch_size-B_padding]
