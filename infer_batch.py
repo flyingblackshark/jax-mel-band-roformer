@@ -145,6 +145,7 @@ def demix_track(model, params,mix,mesh):
             # infer
             with mesh:
                 x = model_apply(params,arr)
+            x = multihost_utils.process_allgather(x)
             x = x[:batch_size-B_padding]
             window = windowingArray
             if i - step == 0:  # First audio chunk, no fadein
