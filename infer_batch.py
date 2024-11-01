@@ -161,7 +161,7 @@ def demix_track(model, params,mix,mesh):
 
             batch_data = []
             batch_locations = []
-
+    np.nan_to_num(result, copy=False, nan=0.0)
     estimated_sources = result / counter
     np.nan_to_num(estimated_sources, copy=False, nan=0.0)
     #estimated_sources = jnp.where(jnp.isnan(estimated_sources), 0, estimated_sources)
