@@ -8,13 +8,15 @@ import jax.numpy as jnp
 import soundfile as sf
 import glob
 import os
-import jaxloudnorm as jln
 from jax.sharding import Mesh, PartitionSpec, NamedSharding
 from jax.lax import with_sharding_constraint
 from jax.experimental import mesh_utils
 from functools import partial
 import jax
+from librosa import filters
+import numpy as np
 from jax.experimental.compilation_cache import compilation_cache as cc
+from einops import einsum, rearrange, pack, unpack,repeat,reduce
 import time
 cc.set_cache_dir("./jax_cache")
 def pre_compute():
