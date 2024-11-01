@@ -51,9 +51,11 @@ def run_folder(args):
 
     if not os.path.isdir(args.store_dir):
         os.mkdir(args.store_dir)
-
-    device_mesh = mesh_utils.create_device_mesh((jax.device_count(),))
-    mesh = Mesh(devices=device_mesh, axis_names=('data'))
+    devices: np.ndarray = np.array(
+        jax.devices()).reshape(jax.process_count() * jax.local_device_count())
+    mesh = jax.sharding.Mesh(devices, ('data'))
+    # device_mesh = mesh_utils.create_device_mesh((jax.device_count(),))
+    # mesh = Mesh(devices=device_mesh, axis_names=('data'))
     i = 0
 
     for path in all_mixtures_path:
@@ -135,12 +137,9 @@ def demix_track(model, params,mix,mesh):
             arr = np.pad(arr,((0,B_padding),(0,0),(0,0)))
             shard_length = batch_size // jax.process_count()
             arr = arr[jax.process_index()*shard_length:(jax.process_index()+1)*shard_length]
-            devices: np.ndarray = np.array(
-                jax.devices()).reshape(jax.process_count() * jax.local_device_count())
-            global_mesh = jax.sharding.Mesh(devices, ('data'))
-            pspec = PartitionSpec('data')
+
             arr = multihost_utils.host_local_array_to_global_array(
-                arr, global_mesh, pspec
+                arr, mesh, PartitionSpec('data')
             )
 
             # infer
