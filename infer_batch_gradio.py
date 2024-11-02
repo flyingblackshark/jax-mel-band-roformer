@@ -60,7 +60,7 @@ def run_folder(input_audio):
     estimates_now = estimates_now / np.max(estimates_now)
     #estimates_now = np.split(estimates_now,axis=-1)
     #output = [(audio,44100) for audio in estimates]
-    return 44100,estimates_now[...,0]
+    return 44100,estimates_now
 
 
 
