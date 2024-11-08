@@ -40,8 +40,7 @@ def pre_compute():
 
 def run_folder(input_audio):
     freq_indices,num_bands_per_freq,freqs_per_bands_with_complex,freqs_per_bands_with_complex_cum = pre_compute()
-    model = MelBandRoformer(precision=jax.lax.Precision.DEFAULT,
-                            freq_indices=freq_indices,
+    model = MelBandRoformer(freq_indices=freq_indices,
                             num_bands_per_freq=num_bands_per_freq,
                             freqs_per_bands_with_complex=freqs_per_bands_with_complex,
                             freqs_per_bands_with_complex_cum=freqs_per_bands_with_complex_cum)

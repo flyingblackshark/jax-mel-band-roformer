@@ -26,85 +26,14 @@ def pack_one(t, pattern):
 def unpack_one(t, ps, pattern):
     return unpack(t, ps, pattern)[0]
 
-# class RotaryEmbedding(nn.Module):
-#   """RoPE
-
-#   Attributes:
-#     min_timescale: Start of the geometric index. Determines the periodicity of
-#       the added signal.
-#     max_timescale: End of the geometric index. Determines the frequency of the
-#       added signal.
-#     embedding_dims: Dimension of the embedding to be generated.
-#   """
-
-#   min_timescale: int
-#   max_timescale: int
-#   embedding_dims: int = 0
-#   cast_as_fprop_dtype: bool = True
-#   fprop_dtype: jnp.dtype = jnp.bfloat16
-
-#   def setup(self) -> None:
-#     if self.embedding_dims % 2:
-#       raise ValueError("Embedding dim for rotary position embedding must be a multiple of 2.")
-
-#   def __call__(
-#       self,  # pytype: disable=signature-mismatch  # overriding-parameter-count-checks
-#       inputs: jax.Array,
-#       position: jax.Array,
-#   ) -> jax.Array:
-#     """Generates a jax.Array of sinusoids with different frequencies.
-
-#     Args:
-#       inputs: The input sequence on which to apply the Rotary position
-#         embedding. Since rotary position embeddings are applied to query and
-#         keys after projection, it is assumed of shape [B, S, N, H].
-#       position: Optional position jax.Array which denotes the position of each
-#         token in the sequence. This only needs to be supplied when the sequence
-#         is packed. It is of shape [B, S].
-
-#     Returns:
-#       a jax.Array of shape [B, S, N, H] which includes the inputs together with
-#       the rotary position embedding incorporated in it.
-#     """
-#     assert position is not None
-#     if len(inputs.shape) != 4:
-#       raise ValueError("Input is assumed to be a rank 4 tensor of shape" "[batch, sequence, heads, dims].")
-#     if self.embedding_dims != inputs.shape[3]:
-#       raise ValueError(
-#           "The embedding dims of the rotary position embedding" "must match the hidden dimension of the inputs."
-#       )
-#     half_embedding_dim = self.embedding_dims // 2
-#     fraction = 2 * jnp.arange(0, half_embedding_dim) / self.embedding_dims
-#     timescale = self.min_timescale * (self.max_timescale / self.min_timescale) ** fraction
-#     position = position[:, :, jnp.newaxis, jnp.newaxis]
-#     sinusoid_inp = position / timescale
-#     sin = jnp.sin(sinusoid_inp).astype(inputs.dtype)
-#     cos = jnp.cos(sinusoid_inp).astype(inputs.dtype)
-#     first_half, second_half = jnp.split(inputs, 2, axis=-1)
-#     first_part = first_half * cos - second_half * sin
-#     second_part = second_half * cos + first_half * sin
-#     if self.cast_as_fprop_dtype:
-#       first_part = first_part.astype(self.fprop_dtype)
-#       second_part = second_part.astype(self.fprop_dtype)
-#     x_out = jnp.concatenate((first_part, second_part), axis=-1)
-#     return x_out
-  
 class RMSNorm(nn.Module):
   """RMS normalization."""
   dim : int
-  #epsilon: float = 1e-12
   dtype: Any = jnp.float32
   weight_dtype: Any = jnp.float32
-  #kernel_axes: Tuple[str, ...] = ()
-  #scale_init: Initializer = nn.initializers.ones
-
   @nn.compact
   def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
     """Applies layer normalization on the input."""
-    #x = jnp.asarray(x, jnp.float32)
-    #features = x.shape[-1]
-    #mean2 = jnp.mean(lax.square(x), axis=-1, keepdims=True)
-    #y = jnp.asarray(x * lax.rsqrt(mean2 + self.epsilon), self.dtype)
     x = x / jnp.linalg.norm(x,axis=-1,keepdims=True)
     gamma = self.param(
         "gamma",
@@ -135,8 +64,6 @@ class FeedForward(nn.Module):
         return net(x)
 class Attend(nn.Module):
     dropout:float = 0.
-    precision:jax.lax.Precision=jax.lax.Precision.HIGHEST
-    #scale = None
     def setup(self):
         self.attn_dropout = nn.Dropout(self.dropout)
 
@@ -156,7 +83,7 @@ class Attend(nn.Module):
         q = q.transpose(0,2,1,3)
         k = k.transpose(0,2,1,3)
         v = v.transpose(0,2,1,3)
-        out = nn.dot_product_attention(q,k,v,dropout_rate=0,deterministic=deterministic,precision=self.precision)
+        out = nn.dot_product_attention(q,k,v,dropout_rate=0,deterministic=deterministic)
 
         return out.transpose(0,2,1,3)
         # similarity
@@ -175,7 +102,6 @@ class Attend(nn.Module):
         # return out
 
 def get_seq_pos(seq_len, offset = 0):
-
     return (jnp.arange(seq_len) + offset)# / self.interpolate_factor
 def embed_forward(
         t : jnp.ndarray,
@@ -232,12 +158,12 @@ class Attention(nn.Module):
     heads:int=8
     dim_head:int=64
     dropout:float=0.
-    precision:jax.lax.Precision=jax.lax.Precision.HIGHEST
+
     @nn.compact
     def __call__(self, x,deterministic):
         dim_inner = self.heads * self.dim_head
         x = RMSNorm(self.dim)(x)
-        temp_x = nn.Dense(dim_inner * 3, use_bias=False,name="to_qkv",precision=self.precision)(x)
+        temp_x = nn.Dense(dim_inner * 3, use_bias=False,name="to_qkv")(x)
         q, k, v = rearrange(temp_x, 'b n (qkv h d) -> qkv b h n d', qkv=3, h=self.heads)
         freqs = self.param(
         "freqs",
@@ -246,11 +172,10 @@ class Attention(nn.Module):
         jnp.float32,
         )
 
-        #if exists(self.rotary_embed):
         q = rotate_queries_or_keys(q,dim_head=self.dim_head,freqs=freqs)
         k = rotate_queries_or_keys(k,dim_head=self.dim_head,freqs=freqs)
 
-        out = Attend(dropout=self.dropout,name="attend",precision=self.precision)(q, k, v,deterministic)
+        out = Attend(dropout=self.dropout,name="attend")(q, k, v,deterministic)
 
         gates = nn.Dense(self.heads,name="to_gates")(x)
         out = out * nn.sigmoid(rearrange(gates, 'b n h -> b h n 1'))
@@ -269,13 +194,12 @@ class Transformer(nn.Module):
     ff_dropout:float=0.
     ff_mult:int=4
     norm_output:bool=True
-    precision:jax.lax.Precision=jax.lax.Precision.HIGHEST
-    #rotary_embed=None
+
     def setup(self):
         layers = []
 
         for _ in range(self.depth):
-            attn = Attention(dim=self.dim, dim_head=self.dim_head, heads=self.heads, dropout=self.attn_dropout,precision=self.precision)
+            attn = Attention(dim=self.dim, dim_head=self.dim_head, heads=self.heads, dropout=self.attn_dropout)
 
             layers.append([
                 attn,
@@ -297,7 +221,6 @@ class BandSplit(nn.Module):
     freqs_per_bands_with_complex:tuple[int]
     freqs_per_bands_with_complex_cum:tuple[int]
     #dim_inputs: Sequence[int]
-    precision : jax.lax.Precision = jax.lax.Precision.HIGHEST
       
     @nn.compact
     def __call__(self, x):
@@ -305,7 +228,7 @@ class BandSplit(nn.Module):
         for dim_in in self.freqs_per_bands_with_complex:
           net = nn.Sequential([
               RMSNorm(dim_in),
-              nn.Dense(self.dim,precision=self.precision)
+              nn.Dense(self.dim)
           ])
 
           to_features.append(net)
@@ -432,7 +355,6 @@ class MelBandRoformer(nn.Module):
     multi_stft_resolutions_window_sizes: Tuple[int, ...] = (4096, 2048, 1024, 512, 256)
     multi_stft_hop_size:int=147
     multi_stft_normalized:bool=False
-    precision : jax.lax.Precision = jax.lax.Precision.HIGHEST
     # multi_stft_window_fn: Callable = torch.hann_window
     freqs_per_bands_with_complex:tuple[int]=None
     freqs_per_bands_with_complex_cum:tuple[int]=None
@@ -476,7 +398,6 @@ class MelBandRoformer(nn.Module):
         
         x = BandSplit(
             dim=self.dim,
-            precision = self.precision,
             freqs_per_bands_with_complex=self.freqs_per_bands_with_complex,
             freqs_per_bands_with_complex_cum=self.freqs_per_bands_with_complex_cum
         )(x)
@@ -492,7 +413,6 @@ class MelBandRoformer(nn.Module):
             dim_head=self.dim_head,
             attn_dropout=self.attn_dropout,
             ff_dropout=self.ff_dropout,
-            precision=self.precision,
             norm_output=False)(x,deterministic=deterministic)
 
           x, = unpack(x, ps, '* t d')
@@ -506,7 +426,6 @@ class MelBandRoformer(nn.Module):
             dim_head=self.dim_head,
             attn_dropout=self.attn_dropout,
             ff_dropout=self.ff_dropout,
-            precision=self.precision,
             norm_output=False)(x,deterministic=deterministic)
 
           x, = unpack(x, ps, '* f d')
