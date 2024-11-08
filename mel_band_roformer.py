@@ -430,7 +430,6 @@ class MelBandRoformer(nn.Module):
 
           x, = unpack(x, ps, '* f d')
 
-        #x = RMSNorm(self.dim)(x)
         out = []
         for _ in range(self.num_stems):
             res = MaskEstimator(
@@ -446,14 +445,12 @@ class MelBandRoformer(nn.Module):
         stft_repr = rearrange(stft_repr, 'b f t c -> b 1 f t c')
 
         # complex number multiplication
-
         stft_repr = as_complex(stft_repr)
         masks = as_complex(masks)
 
         scatter_indices = repeat(self.freq_indices, 'f -> b n f t', b=batch, n=self.num_stems, t=stft_repr.shape[-1])
         stft_repr_expanded_stems = repeat(stft_repr, 'b 1 ... -> b n ...', n=self.num_stems,)
-        #scatter_indices = scatter_indices[:,:,:stft_repr_expanded_stems.shape[2],:]
-        #masks = masks[:,:,:stft_repr_expanded_stems.shape[2],:]
+
         masks_summed = scatter(input=jnp.zeros_like(stft_repr_expanded_stems),dim=2,index=scatter_indices,src=masks,reduce="add")
 
         denom = repeat(self.num_bands_per_freq, 'f -> (f r) 1', r=channels)
