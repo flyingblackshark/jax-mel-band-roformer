@@ -84,7 +84,7 @@ def run_folder(args,verbose=False):
             if bigmix.shape[1] >= 352768 * 64:
                 break
 
-        res = demix_track(model,bigmix,mesh, pbar=False)
+        res = demix_track(model,bigmix,mesh,batch_size=args.batch_size)
         res = np.asarray(res)
         estimates = res.squeeze(0)
         length_arr = np.asarray(length_arr)
@@ -100,7 +100,7 @@ def run_folder(args,verbose=False):
     print("Elapsed time: {:.2f} sec".format(time.time() - start_time))
 
 
-def demix_track(model, mix,mesh, pbar=False):
+def demix_track(model, mix,mesh, batch_size=32):
     model , params = model
     #default chunk size 
     C = 352768  #config.audio.chunk_size
@@ -108,7 +108,7 @@ def demix_track(model, mix,mesh, pbar=False):
     fade_size = C // 10
     step = int(C // N)
     border = C - step
-    batch_size = 32 #config.inference.batch_size
+    #batch_size = 32 #config.inference.batch_size
 
     x_sharding = NamedSharding(mesh,PartitionSpec('data'))
     @partial(jax.jit, in_shardings=(None,x_sharding),
@@ -191,7 +191,7 @@ def proc_folder(args):
     parser.add_argument("--start_check_point", type=str, default='MelBandRoformer_vocal.ckpt', help="Initial checkpoint to valid weights")
     parser.add_argument("--input_folder",default="./input", type=str, help="folder with mixtures to process")
     parser.add_argument("--store_dir", default="./output", type=str, help="path to store results as wav file")
-    parser.add_argument("--disable_detailed_pbar", action='store_true', help="disable detailed progress bar")
+    parser.add_argument("--batch_size", default=32, help="batch size")
     args = parser.parse_args()
     run_folder(args,verbose=True)
 

@@ -52,7 +52,7 @@ def run_folder(input_audio):
     if len(mix.shape) == 1:
         mix = np.stack([mix, mix], axis=0)
 
-    res = demix_track(model,mix,mesh, pbar=False)
+    res = demix_track(model,mix,mesh)
     res = np.asarray(res)
     estimates = res.squeeze(0)
     estimates_now = estimates.transpose(1,0)
@@ -63,7 +63,7 @@ def run_folder(input_audio):
 
 
 
-def demix_track(model, mix,mesh, pbar=False):
+def demix_track(model, mix,mesh):
     model , params = model
     #default chunk size 
     C = 352768  #config.audio.chunk_size
