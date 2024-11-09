@@ -46,7 +46,7 @@ def run_folder(input_audio):
                             freqs_per_bands_with_complex_cum=freqs_per_bands_with_complex_cum)
     params = load_params("/root/jax-mel-band-roformer/MelBandRoformer.ckpt")
     model = (model,params)
-    device_mesh = mesh_utils.create_device_mesh((4,))
+    device_mesh = mesh_utils.create_device_mesh((jax.device_count(),))
     mesh = Mesh(devices=device_mesh, axis_names=('data'))
     mix, sr = librosa.load(input_audio, sr=44100, mono=False)
     if len(mix.shape) == 1:
