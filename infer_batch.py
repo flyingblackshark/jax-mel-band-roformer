@@ -84,7 +84,7 @@ def run_folder(args,verbose=False):
             if bigmix.shape[1] >= 352768 * 64:
                 break
 
-        res = demix_track(model,bigmix,mesh,batch_size=args.batch_size)
+        res = demix_track(model,bigmix,mesh,batch_size=int(args.batch_size))
         res = np.asarray(res)
         estimates = res.squeeze(0)
         length_arr = np.asarray(length_arr)
@@ -191,7 +191,7 @@ def proc_folder(args):
     parser.add_argument("--start_check_point", type=str, default='MelBandRoformer_vocal.ckpt', help="Initial checkpoint to valid weights")
     parser.add_argument("--input_folder",default="./input", type=str, help="folder with mixtures to process")
     parser.add_argument("--store_dir", default="./output", type=str, help="path to store results as wav file")
-    parser.add_argument("--batch_size", default=32, help="batch size")
+    parser.add_argument("--batch_size", default=32,type=int, help="batch size")
     args = parser.parse_args()
     run_folder(args,verbose=True)
 
