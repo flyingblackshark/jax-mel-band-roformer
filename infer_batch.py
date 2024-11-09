@@ -56,7 +56,7 @@ def run_folder(args,verbose=False):
     if not os.path.isdir(args.store_dir):
         os.mkdir(args.store_dir)
 
-    device_mesh = mesh_utils.create_device_mesh((4,))
+    device_mesh = mesh_utils.create_device_mesh((jax.device_count(),))
     mesh = Mesh(devices=device_mesh, axis_names=('data'))
     mixtures = iter(all_mixtures_path)
     i = 0
@@ -167,7 +167,7 @@ def demix_track(model, mix,mesh, pbar=False):
             elif i >= mix.shape[1]:  # Last audio chunk, no fadeout
                 window[-fade_size:] =1
             
-            total_add_value = jax.jit(jnp.multiply)(x[..., :C],window)
+            total_add_value = jax.jit(jnp.multiply, in_shardings=(x_sharding,None),out_shardings=x_sharding)(x[..., :C],window)
             total_add_value = total_add_value[:batch_size-B_padding]
             total_add_value = np.asarray(total_add_value)
             for j in range(len(batch_locations)):
