@@ -38,7 +38,9 @@ def pre_compute():
     freqs_per_bands_with_complex_cum = np.cumsum(np.asarray(freqs_per_bands_with_complex))
     return freq_indices,num_bands_per_freq,freqs_per_bands_with_complex,freqs_per_bands_with_complex_cum
 
-def run_folder(args,verbose=False):
+def run_folder(args):
+    if args.hardware == "tpu":
+        jax.distributed.initialize()
     start_time = time.time()
     freq_indices,num_bands_per_freq,freqs_per_bands_with_complex,freqs_per_bands_with_complex_cum = pre_compute()
     model = MelBandRoformer(freq_indices=freq_indices,
@@ -58,44 +60,28 @@ def run_folder(args,verbose=False):
 
     device_mesh = mesh_utils.create_device_mesh((jax.device_count(),))
     mesh = Mesh(devices=device_mesh, axis_names=('data'))
-    mixtures = iter(all_mixtures_path)
     i = 0
 
     while i < num_audios:
-        bigmix = None
-        file_name_arr = []
-        length_arr = [0]
-        while i < num_audios:
-            path = next(mixtures)
-            mix, sr = librosa.load(path, sr=44100, mono=False)
-            if len(mix.shape) == 1:
-                mix = np.stack([mix, mix], axis=0)
-            length_arr.append(mix.shape[1])
-            file_name, _ = os.path.splitext(os.path.basename(path))
-            file_name_arr.append(file_name)
-            print(f"reading: {file_name}")
-            if bigmix is None:
-                bigmix = mix
-            else:
-                bigmix = np.concatenate([bigmix,mix],axis=1)
-            #print(f"bigmix length now: {bigmix.shape[1]}")
-            i+=1
 
-            if bigmix.shape[1] >= 352768 * 64:
-                break
+        mix, sr = librosa.load(all_mixtures_path[i], sr=44100, mono=False)
+        if len(mix.shape) == 1:
+            mix = np.stack([mix, mix], axis=0)
 
-        res = demix_track(model,bigmix,mesh,batch_size=int(args.batch_size))
+        file_name, _ = os.path.splitext(os.path.basename(all_mixtures_path[i]))
+
+        print(f"reading: {file_name}")
+
+        res = demix_track(model,mix,mesh,batch_size=int(args.batch_size))
         res = np.asarray(res)
         estimates = res.squeeze(0)
-        length_arr = np.asarray(length_arr)
-        length_arr = np.cumsum(length_arr)
-        for j in range(len(file_name_arr)):
-            estimates_now = estimates.transpose(1,0)
-            estimates_now = estimates_now[length_arr[j]:length_arr[j+1]]
-            estimates_now = estimates_now / np.max(estimates_now)
-            output_file = os.path.join(args.store_dir, f"{file_name_arr[j]}_vocal.wav")
-            sf.write(output_file, estimates_now, sr, subtype = 'FLOAT')
-            print(f"{i}/{num_audios} write {output_file}")
+        estimates_now = estimates.transpose(1,0)
+        estimates_now = estimates_now / 1024.
+        output_file = os.path.join(args.store_dir, f"{file_name}_vocal.wav")
+        sf.write(output_file, estimates_now, sr, subtype = 'FLOAT')
+        print(f"write {output_file}")
+
+        i+=1
 
     print("Elapsed time: {:.2f} sec".format(time.time() - start_time))
 
@@ -119,7 +105,7 @@ def demix_track(model, mix,mesh, batch_size=32):
 
     # Do pad from the beginning and end to account floating window results better
     if length_init > 2 * border and (border > 0):
-        mix =jnp.pad(mix, ((0,0),(border, border)), mode='reflect')
+        mix = np.pad(mix, ((0,0),(border, border)), mode='reflect')
     def _getWindowingArray(window_size, fade_size):
         fadein = np.linspace(0, 1, fade_size)
         fadeout = np.linspace(1, 0, fade_size)
@@ -147,19 +133,21 @@ def demix_track(model, mix,mesh, batch_size=32):
         length = part.shape[-1]
         if length < C:
             if length > C // 2 + 1:
-                part = jnp.pad(part,((0,0),(0,C-length)),mode='reflect')
+                part = np.pad(part,((0,0),(0,C-length)),mode='reflect')
             else:
-                part = jnp.pad(part,((0,0),(0,C-length)),mode='constant')
+                part = np.pad(part,((0,0),(0,C-length)),mode='constant')
         batch_data.append(part)
         batch_locations.append((i, length))
         i += step
 
         if len(batch_data) >= batch_size or (i >= mix.shape[1]):
-            arr = jnp.stack(batch_data, axis=0)
+            arr = np.stack(batch_data, axis=0)
             B_padding = max((batch_size-len(batch_data)),0)
-            arr = jnp.pad(arr,((0,B_padding),(0,0),(0,0)))
+            arr = np.pad(arr,((0,B_padding),(0,0),(0,0)))
+
             # infer
             with mesh:
+                arr = jnp.asarray(arr)
                 x = model_apply(params,arr)
             window = windowingArray
             if i - step == 0:  # First audio chunk, no fadein
@@ -192,10 +180,11 @@ def proc_folder(args):
     parser.add_argument("--input_folder",default="./input", type=str, help="folder with mixtures to process")
     parser.add_argument("--store_dir", default="./output", type=str, help="path to store results as wav file")
     parser.add_argument("--batch_size", default=32,type=int, help="batch size")
+    parser.add_argument("--hardware", default="tpu",type=str, help="hardware type")
     args = parser.parse_args()
-    run_folder(args,verbose=True)
+    run_folder(args)
 
 
 if __name__ == "__main__":
-    jax.distributed.initialize()
+    
     proc_folder(None)
